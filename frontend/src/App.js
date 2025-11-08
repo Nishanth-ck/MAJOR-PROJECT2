@@ -14,17 +14,34 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   // Fetch state and status
-  const fetchData = async () => {
+  const fetchData = async (force = false) => {
     try {
-      // Check for local client periodically
-      await checkLocalClient();
+      // Check for local client periodically (only every 30 seconds)
+      const shouldCheckClient = force || Math.random() < 0.1; // 10% chance on each call
+      if (shouldCheckClient) {
+        await checkLocalClient();
+      }
       
       const [stateRes, statusRes] = await Promise.all([
         axios.get(await getApiUrl('api/state')),
         axios.get(await getApiUrl('api/status'))
       ]);
-      setState(stateRes.data.state);
-      setStatus(statusRes.data.status);
+      
+      // Only update if data actually changed
+      const newState = stateRes.data.state;
+      const newStatus = statusRes.data.status;
+      
+      // Use a more efficient comparison - only update if data changed
+      const stateChanged = force || !state || 
+        JSON.stringify(newState) !== JSON.stringify(state);
+      const statusChanged = force || !status || 
+        JSON.stringify(newStatus) !== JSON.stringify(status);
+      
+      if (stateChanged || statusChanged) {
+        setState(newState);
+        setStatus(newStatus);
+      }
+      
       setLoading(false);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -33,10 +50,16 @@ function App() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 5000); // Refresh every 5 seconds
+    fetchData(true); // Initial fetch
+    // Refresh every 10 seconds instead of 5, and only if tab is active
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchData(false);
+      }
+    }, 10000);
     return () => clearInterval(interval);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Handle hash navigation (for download link from Dashboard)
   useEffect(() => {

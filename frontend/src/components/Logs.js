@@ -9,7 +9,7 @@ function Logs() {
 
   const fetchLogs = async () => {
     try {
-      const response = await axios.get(getApiUrl('api/logs?limit=100'));
+      const response = await axios.get(await getApiUrl('api/logs?limit=100'));
       if (response.data.success) {
         setLogs(response.data.logs);
       }

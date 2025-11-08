@@ -357,72 +357,106 @@ def api_server_loop():
     
     class ClientAPIHandler(BaseHTTPRequestHandler):
         def do_GET(self):
-            if self.path == '/api/status':
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                status = get_local_status()
-                self.wfile.write(json.dumps({"success": True, "status": status}).encode())
-            elif self.path == '/api/state':
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": True, "state": client_state}).encode())
-            else:
-                self.send_response(404)
-                self.end_headers()
+            try:
+                if self.path == '/api/status':
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    status = get_local_status()
+                    response_data = json.dumps({"success": True, "status": status}).encode()
+                    self.wfile.write(response_data)
+                elif self.path == '/api/state':
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    response_data = json.dumps({"success": True, "state": client_state}).encode()
+                    self.wfile.write(response_data)
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+            except (ConnectionAbortedError, BrokenPipeError, OSError) as e:
+                # Client disconnected, ignore
+                pass
+            except Exception as e:
+                print(f"Error handling GET request: {e}")
         
         def do_POST(self):
-            content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length)
-            data = json.loads(post_data.decode('utf-8'))
-            
-            if self.path == '/api/monitoring/start':
-                client_state["startMonitoring"] = True
-                save_config()
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": True}).encode())
-            elif self.path == '/api/monitoring/stop':
-                client_state["startMonitoring"] = False
-                save_config()
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": True}).encode())
-            elif self.path == '/api/upload':
-                upload_to_mongo()
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": True}).encode())
-            elif self.path == '/api/state':
-                if "add_monitor_folder" in data:
-                    if "monitor_folders" not in client_state:
-                        client_state["monitor_folders"] = []
-                    if data["add_monitor_folder"] not in client_state["monitor_folders"]:
-                        client_state["monitor_folders"].append(data["add_monitor_folder"])
-                if "remove_monitor_folder" in data:
-                    if "monitor_folders" in client_state:
-                        client_state["monitor_folders"].remove(data["remove_monitor_folder"])
-                if "backup_folder" in data:
-                    client_state["backup_folder"] = data["backup_folder"]
-                save_config()
-                sync_state_to_server()
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.send_header('Access-Control-Allow-Origin', '*')
-                self.end_headers()
-                self.wfile.write(json.dumps({"success": True, "state": client_state}).encode())
-            else:
-                self.send_response(404)
-                self.end_headers()
+            try:
+                content_length = int(self.headers.get('Content-Length', 0))
+                if content_length == 0:
+                    post_data = b'{}'
+                else:
+                    post_data = self.rfile.read(content_length)
+                data = json.loads(post_data.decode('utf-8'))
+                
+                if self.path == '/api/monitoring/start':
+                    client_state["startMonitoring"] = True
+                    save_config()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True}).encode())
+                elif self.path == '/api/monitoring/stop':
+                    client_state["startMonitoring"] = False
+                    save_config()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True}).encode())
+                elif self.path == '/api/upload':
+                    upload_to_mongo()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True}).encode())
+                elif self.path == '/api/state':
+                    if "add_monitor_folder" in data:
+                        if "monitor_folders" not in client_state:
+                            client_state["monitor_folders"] = []
+                        if data["add_monitor_folder"] not in client_state["monitor_folders"]:
+                            client_state["monitor_folders"].append(data["add_monitor_folder"])
+                    if "remove_monitor_folder" in data:
+                        if "monitor_folders" in client_state:
+                            if data["remove_monitor_folder"] in client_state["monitor_folders"]:
+                                client_state["monitor_folders"].remove(data["remove_monitor_folder"])
+                    if "backup_folder" in data:
+                        client_state["backup_folder"] = data["backup_folder"]
+                    save_config()
+                    sync_state_to_server()
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True, "state": client_state}).encode())
+                elif self.path == '/api/folders/validate':
+                    path = data.get("path", "")
+                    exists = os.path.exists(path) and os.path.isdir(path)
+                    self.send_response(200)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": True, "exists": exists}).encode())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+            except (ConnectionAbortedError, BrokenPipeError, OSError) as e:
+                # Client disconnected, ignore
+                pass
+            except Exception as e:
+                print(f"Error handling POST request: {e}")
+                try:
+                    self.send_response(500)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({"success": False, "error": str(e)}).encode())
+                except:
+                    pass
         
         def do_OPTIONS(self):
             self.send_response(200)
