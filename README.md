@@ -3,6 +3,7 @@
 This project has been split into two separate parts for deployment:
 - **Frontend**: React app deployed on Vercel
 - **Backend**: Python Flask API deployed on Render
+- **Desktop Client**: Local application required for file monitoring (see [DESKTOP_CLIENT_GUIDE.md](DESKTOP_CLIENT_GUIDE.md))
 
 ## Project Structure
 
@@ -18,7 +19,13 @@ MAJOR-PROJECT2/
 │   ├── requirements.txt
 │   ├── Procfile
 │   └── render.yaml
-└── api/              # Old Vercel serverless functions (can be removed)
+├── api/              # Vercel serverless functions
+└── desktop_client/   # Desktop client for local file monitoring
+    ├── client.py
+    ├── requirements.txt
+    ├── install.bat
+    ├── install.sh
+    └── README.md
 ```
 
 ## Frontend Deployment (Vercel)
@@ -87,6 +94,8 @@ All API endpoints are prefixed with `/api`:
 - `POST /api/backups/local/delete` - Delete local backup
 - `POST /api/backups/cloud/delete` - Delete cloud backup
 - `POST /api/folders/validate` - Validate folder path
+- `POST /api/client/heartbeat` - Client heartbeat (desktop client)
+- `POST /api/client/state` - Sync client state (desktop client)
 
 ## Development
 
@@ -112,9 +121,34 @@ The backend will run on `http://localhost:5000`.
 
 For local development, you can set `REACT_APP_API_URL=http://localhost:5000` in the frontend `.env` file.
 
+## Desktop Client (Required for File Monitoring)
+
+**Important:** The web application cannot directly access your local file system. To enable file monitoring and cloud backup features, you must install and run the desktop client.
+
+### Quick Start
+
+1. Navigate to the `desktop_client` folder
+2. Run the installer:
+   - **Windows:** `install.bat`
+   - **macOS/Linux:** `./install.sh`
+3. Edit `client.py` and set `API_BASE_URL` to your deployed website URL
+4. Run the client:
+   - **Windows:** `python client.py`
+   - **macOS/Linux:** `python3 client.py`
+5. Verify connection in the web interface (Dashboard → Client status)
+
+For detailed instructions, see [DESKTOP_CLIENT_GUIDE.md](DESKTOP_CLIENT_GUIDE.md)
+
+### Why Desktop Client?
+
+- Web browsers cannot access local file systems (security restriction)
+- The deployed backend is serverless and has no file system access
+- The desktop client runs locally and bridges the gap between your computer and the web app
+
 ## Notes
 
-- The `api/` folder contains old Vercel serverless functions that are no longer used
+- The `api/` folder contains Vercel serverless functions for the deployed backend
 - The frontend now uses environment variables to configure the backend URL
 - CORS is enabled on the backend to allow requests from the frontend domain
 - Make sure to update the `REACT_APP_API_URL` in Vercel after deploying the backend to Render
+- **Desktop client must be running for file monitoring and cloud upload features to work**

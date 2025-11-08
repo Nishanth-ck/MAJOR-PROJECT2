@@ -16,6 +16,10 @@ STATE_STORAGE = {
     "startMonitoring": False
 }
 
+# Client connection tracking
+CLIENT_CONNECTIONS = {}  # Store client status by client_id
+CLIENT_TIMEOUT = 60  # Consider client disconnected after 60 seconds
+
 logs = []
 MAX_LOGS = 100
 
@@ -195,15 +199,27 @@ def handle_status(request, path_parts):
         if not monitor_folders and "monitor_folder" in state:
             monitor_folders = [state["monitor_folder"]]
         
+        # Check if any client is connected
+        client_connected = False
+        client_status = None
+        now = datetime.now()
+        for client_id, client_info in list(CLIENT_CONNECTIONS.items()):
+            last_heartbeat = datetime.fromisoformat(client_info.get("last_heartbeat", "2000-01-01"))
+            if (now - last_heartbeat).total_seconds() < CLIENT_TIMEOUT:
+                client_connected = True
+                client_status = client_info.get("status", {})
+                break
+        
         status = {
             "monitoring_active": state.get("startMonitoring", False),
             "internet_connected": is_connected(),
             "monitor_folders_count": len(monitor_folders),
-            "existing_folders_count": 0,
-            "all_folders_exist": False,
-            "backup_folder_exists": False,
-            "local_backup_count": 0,
-            "cloud_backup_count": len(get_mongo_backup_files()) if is_connected() else None
+            "existing_folders_count": client_status.get("existing_folders_count", 0) if client_status else 0,
+            "all_folders_exist": client_status.get("all_folders_exist", False) if client_status else False,
+            "backup_folder_exists": client_status.get("backup_folder_exists", False) if client_status else False,
+            "local_backup_count": client_status.get("local_backup_count", 0) if client_status else 0,
+            "cloud_backup_count": len(get_mongo_backup_files()) if is_connected() else None,
+            "client_connected": client_connected
         }
         
         return {
@@ -363,6 +379,147 @@ def handle_folders_validate(request, path_parts):
     
     return {'statusCode': 405, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Method not allowed"})}
 
+def handle_client_heartbeat(request, path_parts):
+    """Handle /api/client/heartbeat requests."""
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
+    if method == 'POST':
+        try:
+            data = parse_body(request)
+            client_id = data.get("client_id", "default")
+            status = data.get("status", {})
+            timestamp = data.get("timestamp", datetime.now().isoformat())
+            
+            CLIENT_CONNECTIONS[client_id] = {
+                "last_heartbeat": timestamp,
+                "status": status
+            }
+            
+            # Return current state from server
+            state = get_state()
+            
+            return {
+                'statusCode': 200,
+                'headers': cors_headers(),
+                'body': json.dumps({
+                    "success": True,
+                    "state": state
+                })
+            }
+        except Exception as e:
+            return {
+                'statusCode': 400,
+                'headers': cors_headers(),
+                'body': json.dumps({"success": False, "error": str(e)})
+            }
+    
+    return {'statusCode': 405, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Method not allowed"})}
+
+def handle_client_state(request, path_parts):
+    """Handle /api/client/state requests."""
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
+    if method == 'POST':
+        try:
+            data = parse_body(request)
+            # Update server state from client
+            state = get_state()
+            if "monitor_folders" in data:
+                state["monitor_folders"] = data["monitor_folders"]
+            if "backup_folder" in data:
+                state["backup_folder"] = data["backup_folder"]
+            if "startMonitoring" in data:
+                state["startMonitoring"] = data["startMonitoring"]
+            save_state(state)
+            
+            return {
+                'statusCode': 200,
+                'headers': cors_headers(),
+                'body': json.dumps({"success": True, "state": state})
+            }
+        except Exception as e:
+            return {
+                'statusCode': 400,
+                'headers': cors_headers(),
+                'body': json.dumps({"success": False, "error": str(e)})
+            }
+    
+    return {'statusCode': 405, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Method not allowed"})}
+
+def handle_client_download(request, path_parts):
+    """Handle /api/client/download/{platform} requests."""
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
+    if method == 'GET':
+        try:
+            if len(path_parts) < 3:
+                return {
+                    'statusCode': 400,
+                    'headers': cors_headers(),
+                    'body': json.dumps({"success": False, "error": "Platform required"})
+                }
+            
+            platform = path_parts[2]
+            if platform not in ['windows', 'macos', 'linux']:
+                return {
+                    'statusCode': 400,
+                    'headers': cors_headers(),
+                    'body': json.dumps({"success": False, "error": "Invalid platform. Use: windows, macos, or linux"})
+                }
+            
+            filename = f"file-protector-client-{platform}.zip"
+            
+            # Connect to MongoDB
+            if not MONGO_URI:
+                return {
+                    'statusCode': 500,
+                    'headers': cors_headers(),
+                    'body': json.dumps({"success": False, "error": "MongoDB URI not configured"})
+                }
+            
+            client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+            db = client[DB_NAME]
+            fs = gridfs.GridFS(db)
+            
+            # Find the file
+            file_doc = db.fs.files.find_one({"filename": filename})
+            if not file_doc:
+                client.close()
+                return {
+                    'statusCode': 404,
+                    'headers': cors_headers(),
+                    'body': json.dumps({"success": False, "error": f"Client file for {platform} not found. Please upload it first."})
+                }
+            
+            # Get file data
+            file_data = fs.get(file_doc["_id"])
+            file_content = file_data.read()
+            
+            client.close()
+            
+            # Return file with proper headers for download
+            import base64
+            file_base64 = base64.b64encode(file_content).decode('utf-8')
+            
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Content-Type': 'application/zip',
+                    'Content-Disposition': f'attachment; filename="{filename}"',
+                    'Content-Length': str(len(file_content)),
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Expose-Headers': 'Content-Disposition'
+                },
+                'body': file_base64,
+                'isBase64Encoded': True
+            }
+        except Exception as e:
+            add_log(f"Download client failed: {e}", "error")
+            return {
+                'statusCode': 500,
+                'headers': cors_headers(),
+                'body': json.dumps({"success": False, "error": str(e)})
+            }
+    
+    return {'statusCode': 405, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Method not allowed"})}
+
 def handler(request):
     """Main handler that routes all API requests."""
     try:
@@ -445,6 +602,14 @@ def handler(request):
         elif route == 'folders':
             if len(path_parts) > 1 and path_parts[1] == 'validate':
                 return handle_folders_validate(request, path_parts)
+        elif route == 'client':
+            if len(path_parts) > 1:
+                if path_parts[1] == 'heartbeat':
+                    return handle_client_heartbeat(request, path_parts)
+                elif path_parts[1] == 'state':
+                    return handle_client_state(request, path_parts)
+                elif path_parts[1] == 'download':
+                    return handle_client_download(request, path_parts)
         
         return {'statusCode': 404, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Endpoint not found"})}
     

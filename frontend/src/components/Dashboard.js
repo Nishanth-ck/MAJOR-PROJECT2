@@ -16,7 +16,7 @@ function Dashboard({ state, status, refreshData }) {
 
   const handleStartMonitoring = async () => {
     try {
-      await axios.post(getApiUrl('api/monitoring/start'));
+      await axios.post(await getApiUrl('api/monitoring/start'));
       refreshData();
       showModal('success', 'Success', 'Monitoring started successfully!');
     } catch (error) {
@@ -26,7 +26,7 @@ function Dashboard({ state, status, refreshData }) {
 
   const handleStopMonitoring = async () => {
     try {
-      await axios.post(getApiUrl('api/monitoring/stop'));
+      await axios.post(await getApiUrl('api/monitoring/stop'));
       refreshData();
       showModal('info', 'Monitoring Stopped', 'Monitoring has been stopped successfully.');
     } catch (error) {
@@ -36,7 +36,7 @@ function Dashboard({ state, status, refreshData }) {
 
   const handleManualUpload = async () => {
     try {
-      await axios.post(getApiUrl('api/upload'));
+      await axios.post(await getApiUrl('api/upload'));
       refreshData();
       showModal('success', 'Upload Complete', 'Manual upload completed successfully!');
     } catch (error) {
@@ -66,7 +66,8 @@ function Dashboard({ state, status, refreshData }) {
             <button 
               className="px-6 py-3 bg-green-500 text-white rounded-lg transition-all duration-300 font-medium hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={handleStartMonitoring}
-              disabled={!status.all_folders_exist || !status.backup_folder_exists}
+              disabled={!status.client_connected || !status.all_folders_exist || !status.backup_folder_exists}
+              title={!status.client_connected ? "Desktop client not connected. Please install and run the desktop client." : ""}
             >
               ▶️ Start Monitoring
             </button>
@@ -81,7 +82,8 @@ function Dashboard({ state, status, refreshData }) {
           <button 
             className="px-6 py-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-lg transition-all duration-300 font-medium hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleManualUpload}
-            disabled={!status.internet_connected || status.local_backup_count === 0}
+            disabled={!status.client_connected || !status.internet_connected || status.local_backup_count === 0}
+            title={!status.client_connected ? "Desktop client not connected. Please install and run the desktop client." : ""}
           >
             ☁️ Upload to Cloud
           </button>
@@ -94,9 +96,42 @@ function Dashboard({ state, status, refreshData }) {
         </div>
       </div>
 
+      {!status.client_connected && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 mb-6 rounded-lg">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <span className="text-yellow-400 text-2xl">⚠️</span>
+            </div>
+            <div className="ml-3 flex-1">
+              <h3 className="text-lg font-semibold text-yellow-800 mb-2">Desktop Client Not Connected</h3>
+              <p className="text-sm text-yellow-700 mb-3">
+                The desktop client is required to enable file monitoring and cloud backup features. 
+                Please download and install the desktop client to continue.
+              </p>
+              <button
+                onClick={() => window.location.hash = '#download'}
+                className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium text-sm"
+              >
+                📥 Download Desktop Client
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white/95 rounded-xl p-8 shadow-xl mb-6">
         <h2 className="text-indigo-600 mb-4 text-3xl font-bold">System Status</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
+            <span className="font-medium text-gray-700">Client:</span>
+            <span className={`inline-block px-4 py-2 rounded-full font-medium text-sm ${
+              status.client_connected 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {status.client_connected ? '🟢 Connected' : '🔴 Not Connected'}
+            </span>
+          </div>
           <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
             <span className="font-medium text-gray-700">Monitoring:</span>
             <span className={`inline-block px-4 py-2 rounded-full font-medium text-sm ${

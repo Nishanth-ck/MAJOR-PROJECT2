@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import getApiUrl from './config/api';
+import getApiUrl, { checkLocalClient } from './config/api';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import Backups from './components/Backups';
 import Logs from './components/Logs';
+import Download from './components/Download';
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -15,9 +16,12 @@ function App() {
   // Fetch state and status
   const fetchData = async () => {
     try {
+      // Check for local client periodically
+      await checkLocalClient();
+      
       const [stateRes, statusRes] = await Promise.all([
-        axios.get(getApiUrl('api/state')),
-        axios.get(getApiUrl('api/status'))
+        axios.get(await getApiUrl('api/state')),
+        axios.get(await getApiUrl('api/status'))
       ]);
       setState(stateRes.data.state);
       setStatus(statusRes.data.status);
@@ -34,6 +38,18 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle hash navigation (for download link from Dashboard)
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#download') {
+        setActiveTab('download');
+      }
+    };
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   const renderContent = () => {
     if (loading) {
       return <div className="text-center text-2xl text-white py-12">Loading...</div>;
@@ -48,6 +64,8 @@ function App() {
         return <Backups />;
       case 'logs':
         return <Logs />;
+      case 'download':
+        return <Download />;
       default:
         return <Dashboard state={state} status={status} refreshData={fetchData} />;
     }
@@ -102,6 +120,16 @@ function App() {
           onClick={() => setActiveTab('logs')}
         >
           📋 Logs
+        </button>
+        <button 
+          className={`px-6 py-3 rounded-lg transition-all duration-300 font-medium shadow-md hover:-translate-y-0.5 hover:shadow-lg ${
+            activeTab === 'download' 
+              ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-indigo-400' 
+              : 'bg-white/90 text-gray-700 hover:bg-white'
+          }`}
+          onClick={() => setActiveTab('download')}
+        >
+          📥 Download Client
         </button>
       </nav>
 
