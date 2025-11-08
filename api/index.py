@@ -304,7 +304,13 @@ def handle_folders_validate(request, path_parts):
 def handler(request):
     """Main handler that routes all API requests."""
     try:
-        # Vercel passes request as dict
+        # Debug: Log request type
+        request_type = type(request).__name__
+        request_repr = str(request)[:200] if len(str(request)) > 200 else str(request)
+        print(f"Request type: {request_type}")
+        print(f"Request repr: {request_repr}")
+        
+        # Vercel passes request as dict or object
         if isinstance(request, dict):
             method = request.get('method', 'GET')
             path = request.get('path', '')
@@ -314,13 +320,24 @@ def handler(request):
                     parsed = urlparse(url)
                     path = parsed.path
             headers = request.get('headers', {})
-        else:
+        elif hasattr(request, '__dict__'):
+            # Object with attributes
             method = getattr(request, 'method', 'GET')
             path = getattr(request, 'path', '')
             if not path and hasattr(request, 'url'):
                 parsed = urlparse(request.url)
                 path = parsed.path
             headers = getattr(request, 'headers', {})
+        else:
+            # Try to access as dict-like
+            method = request.get('method', 'GET') if hasattr(request, 'get') else 'GET'
+            path = request.get('path', '') if hasattr(request, 'get') else ''
+            if not path and hasattr(request, 'url'):
+                parsed = urlparse(request.url)
+                path = parsed.path
+            headers = request.get('headers', {}) if hasattr(request, 'get') else {}
+        
+        print(f"Method: {method}, Path: {path}")
         
         # Handle CORS preflight
         if method == 'OPTIONS':
@@ -375,13 +392,15 @@ def handler(request):
         traceback_str = traceback.format_exc()
         print(f"Error in handler: {error_msg}")
         print(traceback_str)
+        # Return error details in response for debugging
         return {
             'statusCode': 500,
             'headers': cors_headers(),
             'body': json.dumps({
                 "success": False,
                 "error": error_msg,
-                "details": traceback_str
+                "type": type(e).__name__,
+                "traceback": traceback_str.split('\n')[-10:]  # Last 10 lines
             })
         }
 
