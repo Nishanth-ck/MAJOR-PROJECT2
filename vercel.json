@@ -5,7 +5,7 @@
   "installCommand": "cd frontend && npm install",
   "headers": [
     {
-      "source": "/static/(.*)",
+      "source": "/static/:path*",
       "headers": [
         {
           "key": "Cache-Control",
@@ -14,7 +14,7 @@
       ]
     },
     {
-      "source": "/.*\\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json)$",
+      "source": "/:all*(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -25,7 +25,7 @@
   ],
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "destination": "/api"
     },
     {
