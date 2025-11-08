@@ -412,6 +412,50 @@ def delete_all_cloud_backups():
         add_log(f"Delete all failed: {e}", "error")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/api/client/download/<platform>', methods=['GET'])
+def download_client(platform):
+    """Download desktop client file from MongoDB."""
+    try:
+        if platform not in ['windows', 'macos', 'linux']:
+            return jsonify({"success": False, "error": "Invalid platform. Use: windows, macos, or linux"}), 400
+        
+        filename = f"file-protector-client-{platform}.zip"
+        
+        # Connect to MongoDB
+        client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+        db = client[DB_NAME]
+        fs = gridfs.GridFS(db)
+        
+        # Find the file
+        file_doc = db.fs.files.find_one({"filename": filename})
+        if not file_doc:
+            client.close()
+            return jsonify({"success": False, "error": f"Client file for {platform} not found. Please upload it first."}), 404
+        
+        # Get file data
+        file_data = fs.get(file_doc["_id"])
+        file_content = file_data.read()
+        
+        client.close()
+        
+        # Return file with proper headers for download
+        from flask import Response
+        response = Response(
+            file_content,
+            mimetype='application/zip',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(len(file_content))
+            }
+        )
+        
+        add_log(f"Downloaded client file: {filename}", "success")
+        return response
+        
+    except Exception as e:
+        add_log(f"Download client failed: {e}", "error")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
     add_log("API Server starting...", "info")
     port = int(os.environ.get("PORT", 5000))
