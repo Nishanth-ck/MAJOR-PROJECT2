@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import getApiUrl from '../config/api';
 import InfoModal from './InfoModal';
 import ConfirmModal from './ConfirmModal';
 
@@ -39,8 +40,8 @@ function Backups() {
     setLoading(true);
     try {
       const [localRes, cloudRes] = await Promise.all([
-        axios.get('/api/backups/local'),
-        axios.get('/api/backups/cloud')
+        axios.get(getApiUrl('api/backups/local')),
+        axios.get(getApiUrl('api/backups/cloud'))
       ]);
       
       if (localRes.data.success) {
@@ -80,7 +81,7 @@ function Backups() {
     try {
       setDownloading(prev => ({ ...prev, [filename]: true }));
       
-      const response = await axios.post('/api/backups/cloud/download', { filename });
+      const response = await axios.post(getApiUrl('api/backups/cloud/download'), { filename });
       
       if (response.data.success) {
         showModal('success', 'Download Complete', response.data.message);
@@ -107,8 +108,8 @@ function Backups() {
           setDeleting(prev => ({ ...prev, [filename]: true }));
           
           const endpoint = backupType === 'local' 
-            ? '/api/backups/local/delete'
-            : '/api/backups/cloud/delete';
+            ? getApiUrl('api/backups/local/delete')
+            : getApiUrl('api/backups/cloud/delete');
           
           const response = await axios.post(endpoint, { filename });
           
@@ -139,8 +140,8 @@ function Backups() {
         closeConfirmModal();
         try {
           const endpoint = backupType === 'local' 
-            ? '/api/backups/local/delete-all'
-            : '/api/backups/cloud/delete-all';
+            ? getApiUrl('api/backups/local/delete-all')
+            : getApiUrl('api/backups/cloud/delete-all');
           
           const response = await axios.post(endpoint);
           

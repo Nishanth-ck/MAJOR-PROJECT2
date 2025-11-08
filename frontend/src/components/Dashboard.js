@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import getApiUrl from '../config/api';
 import InfoModal from './InfoModal';
 
 function Dashboard({ state, status, refreshData }) {
@@ -15,7 +16,7 @@ function Dashboard({ state, status, refreshData }) {
 
   const handleStartMonitoring = async () => {
     try {
-      await axios.post('/api/monitoring/start');
+      await axios.post(getApiUrl('api/monitoring/start'));
       refreshData();
       showModal('success', 'Success', 'Monitoring started successfully!');
     } catch (error) {
@@ -25,7 +26,7 @@ function Dashboard({ state, status, refreshData }) {
 
   const handleStopMonitoring = async () => {
     try {
-      await axios.post('/api/monitoring/stop');
+      await axios.post(getApiUrl('api/monitoring/stop'));
       refreshData();
       showModal('info', 'Monitoring Stopped', 'Monitoring has been stopped successfully.');
     } catch (error) {
@@ -35,7 +36,7 @@ function Dashboard({ state, status, refreshData }) {
 
   const handleManualUpload = async () => {
     try {
-      await axios.post('/api/upload');
+      await axios.post(getApiUrl('api/upload'));
       refreshData();
       showModal('success', 'Upload Complete', 'Manual upload completed successfully!');
     } catch (error) {

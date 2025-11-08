@@ -11,8 +11,8 @@ import gridfs
 import zipfile
 
 # ====== MongoDB Atlas Connection ======
-MONGO_URI = "mongodb+srv://nishanthck09072004_db_user:b9hoRGMqNCbGSK98@cluster0.yyhfish.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-DB_NAME = "file_backups"
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://nishanthck09072004_db_user:b9hoRGMqNCbGSK98@cluster0.yyhfish.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+DB_NAME = os.environ.get("DB_NAME", "file_backups")
 
 # ====== Helper Functions ======
 

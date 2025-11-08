@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import getApiUrl from '../config/api';
 
 function Logs() {
   const [logs, setLogs] = useState([]);
@@ -8,7 +9,7 @@ function Logs() {
 
   const fetchLogs = async () => {
     try {
-      const response = await axios.get('/api/logs?limit=100');
+      const response = await axios.get(getApiUrl('api/logs?limit=100'));
       if (response.data.success) {
         setLogs(response.data.logs);
       }

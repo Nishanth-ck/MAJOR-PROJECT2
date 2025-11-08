@@ -1,315 +1,120 @@
-# 🛡️ File Protector - Automated Backup System
+# File Protector - Split Deployment
 
-A powerful, user-friendly file monitoring and backup system that protects your important files with real-time monitoring, local backups, and cloud storage.
+This project has been split into two separate parts for deployment:
+- **Frontend**: React app deployed on Vercel
+- **Backend**: Python Flask API deployed on Render
 
-[![Python](https://img.shields.io/badge/Python-3.7+-blue.svg)](https://www.python.org/)
-[![React](https://img.shields.io/badge/React-18.2-blue.svg)](https://reactjs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-green.svg)](https://www.mongodb.com/atlas)
+## Project Structure
 
----
-
-## 📋 Table of Contents
-
-- [Features](#-features]
-- [Quick Start](#-quick-start)
-- [Architecture](#-architecture)
-- [Documentation](#-documentation)
-- [Screenshots](#-screenshots)
-
----
-
-## ✨ Features
-
-### Core Functionality
-- ✅ **Real-time Monitoring** - Watch multiple folders simultaneously
-- ✅ **Instant Backups** - Automatic backup on file changes/deletions
-- ✅ **Cloud Storage** - Secure backups in MongoDB Atlas
-- ✅ **File Recovery** - Download and restore files from cloud
-- ✅ **Modern UI** - Beautiful Tailwind CSS interface
-- ✅ **System Logs** - Real-time activity tracking
-
-### Advanced Capabilities
-- 📁 **Multiple Folder Monitoring** - Protect entire drives or specific folders
-- 🌐 **Automatic Cloud Sync** - Uploads every 30 minutes
-- 📊 **Dashboard Analytics** - Real-time statistics and status
-- 🔄 **Manual Controls** - Start/stop monitoring, manual uploads
-- ⚠️ **Smart Warnings** - Prevents accidental root drive monitoring
-- 💾 **Complete File Recovery** - Restore any backed-up file
-
----
-
-## 🚀 Quick Start
-
-### 1. Install Dependencies
-
-**Backend:**
-```bash
-cd backend
-pip install -r requirements.txt
+```
+MAJOR-PROJECT2/
+├── frontend/          # React frontend (Vercel)
+│   ├── src/
+│   ├── package.json
+│   └── .env.example
+├── backend/          # Flask backend (Render)
+│   ├── api.py
+│   ├── app.py
+│   ├── requirements.txt
+│   ├── Procfile
+│   └── render.yaml
+└── api/              # Old Vercel serverless functions (can be removed)
 ```
 
-**Frontend:**
+## Frontend Deployment (Vercel)
+
+1. **Set Environment Variable**:
+   - In Vercel dashboard, go to your project settings
+   - Add environment variable: `REACT_APP_API_URL` = `https://your-backend.onrender.com`
+   - Make sure to include the full URL without trailing slash
+
+2. **Deploy**:
+   - Connect your repository to Vercel
+   - Set root directory to `frontend` (or use the vercel.json configuration)
+   - Vercel will automatically build and deploy
+
+## Backend Deployment (Render)
+
+1. **Create a new Web Service on Render**:
+   - Connect your repository
+   - Set root directory to `backend`
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `gunicorn app:app`
+
+2. **Set Environment Variables**:
+   - `MONGO_URI`: Your MongoDB connection string
+   - `DB_NAME`: Database name (default: `file_backups`)
+   - `PORT`: Port number (Render sets this automatically, but you can set it to 10000)
+
+3. **Deploy**:
+   - Render will automatically deploy when you push to your repository
+   - Note the backend URL (e.g., `https://your-backend.onrender.com`)
+
+## Configuration
+
+### Frontend Environment Variables
+
+Create a `.env` file in the `frontend` directory (or set in Vercel):
+
+```env
+REACT_APP_API_URL=https://your-backend.onrender.com
+```
+
+### Backend Environment Variables
+
+Set in Render dashboard:
+
+```env
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/?retryWrites=true&w=majority
+DB_NAME=file_backups
+PORT=10000
+```
+
+## API Endpoints
+
+All API endpoints are prefixed with `/api`:
+
+- `GET /api/state` - Get current state
+- `POST /api/state` - Update state
+- `GET /api/status` - Get system status
+- `GET /api/logs` - Get logs
+- `POST /api/monitoring/start` - Start monitoring
+- `POST /api/monitoring/stop` - Stop monitoring
+- `POST /api/upload` - Manual upload to cloud
+- `GET /api/backups/local` - Get local backups
+- `GET /api/backups/cloud` - Get cloud backups
+- `POST /api/backups/cloud/download` - Download from cloud
+- `POST /api/backups/local/delete` - Delete local backup
+- `POST /api/backups/cloud/delete` - Delete cloud backup
+- `POST /api/folders/validate` - Validate folder path
+
+## Development
+
+### Frontend (Local)
+
 ```bash
 cd frontend
 npm install
-```
-
-### 2. Configure MongoDB
-
-1. Sign up at [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create a free cluster
-3. Get your connection string
-4. Update in `backend/api.py` and `backend/file_protector2.py`:
-   ```python
-   MONGO_URI = "your-connection-string-here"
-   ```
-
-### 3. Run the Application
-
-**Option A: Separate Terminals**
-```bash
-# Terminal 1 - Backend
-cd backend
-python api.py
-
-# Terminal 2 - Frontend
-cd frontend
 npm start
 ```
 
-**Option B: Batch File (Windows)**
-```batch
-# Create start.bat in project root
-@echo off
-start "Backend" cmd /k "cd backend && python api.py"
-timeout /t 3
-start "Frontend" cmd /k "cd frontend && npm start"
+The frontend will run on `http://localhost:3000` and will use relative API paths (which will fail unless you have a proxy or backend running).
+
+### Backend (Local)
+
+```bash
+cd backend
+pip install -r requirements.txt
+python app.py
 ```
 
-### 4. Access the Application
+The backend will run on `http://localhost:5000`.
 
-- **Frontend UI**: http://localhost:3000
-- **Backend API**: http://localhost:5000
+For local development, you can set `REACT_APP_API_URL=http://localhost:5000` in the frontend `.env` file.
 
----
+## Notes
 
-## 📐 Architecture
-
-```
-File Protector/
-├── backend/              # Python Flask Backend
-│   ├── api.py           # REST API endpoints
-│   ├── file_protector2.py  # File monitoring logic
-│   ├── state.py         # State management
-│   ├── controller.py    # Control scripts
-│   └── requirements.txt # Python dependencies
-│
-├── frontend/             # React Frontend
-│   ├── src/
-│   │   ├── components/  # UI components
-│   │   │   ├── Dashboard.js
-│   │   │   ├── Settings.js
-│   │   │   ├── Backups.js
-│   │   │   └── Logs.js
-│   │   ├── App.js       # Main app component
-│   │   └── index.js     # Entry point
-│   └── package.json     # Node dependencies
-│
-├── USER_GUIDE.md        # Complete user documentation
-└── README.md            # This file
-```
-
-**Tech Stack:**
-- **Backend**: Flask (Python), Watchdog (file monitoring), PyMongo, GridFS
-- **Frontend**: React, Tailwind CSS, Axios
-- **Database**: MongoDB Atlas (cloud storage)
-- **File Storage**: GridFS for large files
-
----
-
-## 📚 Documentation
-
-### Complete User Guide
-
-See **[USER_GUIDE.md](./USER_GUIDE.md)** for comprehensive documentation including:
-
-- 📖 Complete installation guide
-- 🎯 Step-by-step UI walkthrough
-- 💡 Real-world use cases
-- 🧪 8 detailed test scenarios
-- 🔧 Troubleshooting guide
-- ⚙️ Advanced configuration
-
-### API Endpoints
-
-**State Management:**
-- `GET /api/state` - Get current configuration
-- `POST /api/state` - Update configuration
-- `POST /api/state` with `add_monitor_folder` - Add folder
-- `POST /api/state` with `remove_monitor_folder` - Remove folder
-
-**Monitoring:**
-- `POST /api/monitoring/start` - Start monitoring
-- `POST /api/monitoring/stop` - Stop monitoring
-- `GET /api/status` - Get system status
-
-**Backups:**
-- `GET /api/backups/local` - List local backups
-- `GET /api/backups/cloud` - List cloud backups
-- `POST /api/backups/cloud/download` - Download from cloud
-- `POST /api/upload` - Manual cloud upload
-
-**Logs:**
-- `GET /api/logs` - Get system logs
-
----
-
-## 🎮 Use Cases
-
-### 1. Document Protection
-Monitor and backup important documents automatically.
-
-### 2. Code Projects
-Track every change in your development projects.
-
-### 3. Desktop Files
-Protect files on your desktop from accidental deletion.
-
-### 4. Disaster Recovery
-Cloud storage ensures file recovery after system failure.
-
-### 5. Multiple Locations
-Protect Documents, Desktop, Downloads simultaneously.
-
-### 6. Enterprise Use
-Monitor entire network drives or shared folders.
-
----
-
-## 🖼️ Screenshots
-
-### Dashboard
-- Real-time system status
-- Quick action buttons
-- Backup statistics
-- Current configuration
-
-### Settings
-- Add/remove monitor folders
-- Configure backup location
-- Manage multiple folders
-- Smart warnings
-
-### Backups
-- View local backups
-- View cloud backups
-- Download from cloud
-- File recovery
-
-### Logs
-- Real-time activity feed
-- Color-coded log types
-- Auto-refresh toggle
-- Event history
-
----
-
-## 🧪 Test Scenarios
-
-The **[USER_GUIDE.md](./USER_GUIDE.md)** includes 8 comprehensive test scenarios:
-
-1. **Basic File Monitoring** - Create, modify, delete test
-2. **Cloud Upload and Download** - End-to-end cloud workflow
-3. **Multiple Folder Monitoring** - Simultaneous folder watching
-4. **Root Drive Warning** - Safety for C:\ monitoring
-5. **Log Monitoring** - Real-time logging verification
-6. **Folder Management** - Add/remove functionality
-7. **Network Error Handling** - Offline resilience
-8. **Large File Handling** - Performance with big files
-
----
-
-## ⚙️ Configuration
-
-### Default Settings
-
-**State File:** `backend/state.json`
-```json
-{
-  "monitor_folders": ["C:\\Users\\YourName\\Documents"],
-  "backup_folder": "C:\\Users\\YourName\\Backups",
-  "startMonitoring": false
-}
-```
-
-### Environment Variables
-
-- `MONGO_URI` - MongoDB connection string
-- `DB_NAME` - Database name (default: file_backups)
-- `FLASK_ENV` - Flask environment (development/production)
-
----
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-**Problem:** Backend won't start
-- **Solution:** Check Python version (3.7+), install requirements.txt
-
-**Problem:** Frontend won't start
-- **Solution:** Run `npm install`, check Node version (14+)
-
-**Problem:** Monitoring not working
-- **Solution:** Verify folders exist, check permissions, view logs
-
-**Problem:** Cloud upload fails
-- **Solution:** Check internet, verify MongoDB connection string, check IP whitelist
-
-For more troubleshooting, see [USER_GUIDE.md](./USER_GUIDE.md).
-
----
-
-## 📝 License
-
-MIT License - Feel free to use and modify for your projects.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-## 📞 Support
-
-- 📖 See **USER_GUIDE.md** for detailed help
-- 🐛 Check logs for error messages
-- 💡 Review test scenarios for examples
-- 🔧 Verify configuration files
-
----
-
-## 🚀 Future Enhancements
-
-- [ ] Scheduled backups
-- [ ] Backup retention policies
-- [ ] Email notifications
-- [ ] File versioning
-- [ ] Encryption support
-- [ ] Mobile app
-- [ ] Network sync
-- [ ] Backup compression
-
----
-
-**Version:** 1.0.0  
-**Last Updated:** 2024  
-**Author:** File Protector Team  
-**Status:** Production Ready ✅
-
+- The `api/` folder contains old Vercel serverless functions that are no longer used
+- The frontend now uses environment variables to configure the backend URL
+- CORS is enabled on the backend to allow requests from the frontend domain
+- Make sure to update the `REACT_APP_API_URL` in Vercel after deploying the backend to Render

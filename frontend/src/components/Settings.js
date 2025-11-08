@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import getApiUrl from '../config/api';
 import InfoModal from './InfoModal';
 
 function Settings({ state, refreshData }) {
@@ -32,7 +33,7 @@ function Settings({ state, refreshData }) {
 
   const validateFolder = async (path) => {
     try {
-      const response = await axios.post('/api/folders/validate', { path });
+      const response = await axios.post(getApiUrl('api/folders/validate'), { path });
       return response.data.exists;
     } catch (error) {
       return false;
@@ -79,7 +80,7 @@ function Settings({ state, refreshData }) {
 
     setSaving(true);
     try {
-      await axios.post('/api/state', {
+      await axios.post(getApiUrl('api/state'), {
         add_monitor_folder: newFolder.trim()
       });
       
@@ -101,7 +102,7 @@ function Settings({ state, refreshData }) {
 
     setSaving(true);
     try {
-      await axios.post('/api/state', {
+      await axios.post(getApiUrl('api/state'), {
         remove_monitor_folder: folderToRemove
       });
       
@@ -125,7 +126,7 @@ function Settings({ state, refreshData }) {
 
     setSaving(true);
     try {
-      await axios.post('/api/state', {
+      await axios.post(getApiUrl('api/state'), {
         backup_folder: backupFolder
       });
 

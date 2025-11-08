@@ -18,9 +18,9 @@ monitoring_active = False
 logs = []  # Store recent logs
 MAX_LOGS = 100
 
-# MongoDB connection
-MONGO_URI = "mongodb+srv://nishanthck09072004_db_user:b9hoRGMqNCbGSK98@cluster0.yyhfish.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-DB_NAME = "file_backups"
+# MongoDB connection - use environment variables
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://nishanthck09072004_db_user:b9hoRGMqNCbGSK98@cluster0.yyhfish.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+DB_NAME = os.environ.get("DB_NAME", "file_backups")
 
 # ====== Helper Functions ======
 
@@ -414,4 +414,5 @@ def delete_all_cloud_backups():
 
 if __name__ == '__main__':
     add_log("API Server starting...", "info")
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)

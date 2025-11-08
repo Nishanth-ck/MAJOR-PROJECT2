@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import getApiUrl from './config/api';
 import Dashboard from './components/Dashboard';
 import Settings from './components/Settings';
 import Backups from './components/Backups';
@@ -15,8 +16,8 @@ function App() {
   const fetchData = async () => {
     try {
       const [stateRes, statusRes] = await Promise.all([
-        axios.get('/api/state'),
-        axios.get('/api/status')
+        axios.get(getApiUrl('api/state')),
+        axios.get(getApiUrl('api/status'))
       ]);
       setState(stateRes.data.state);
       setStatus(statusRes.data.status);
