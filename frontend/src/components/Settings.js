@@ -46,12 +46,19 @@ function Settings({ state, refreshData }) {
       return;
     }
 
+    // Normalize the path - remove trailing backslash except for root drives
+    let normalizedPath = newFolder.trim();
+    if (normalizedPath.endsWith('\\') && normalizedPath.length > 3) {
+      normalizedPath = normalizedPath.slice(0, -1);
+    }
+
     // Check if user is adding a root drive
-    const trimmedFolder = newFolder.trim().toUpperCase();
+    const trimmedFolder = normalizedPath.toUpperCase();
     if (trimmedFolder === 'C:\\' || trimmedFolder === 'C:' || 
         trimmedFolder === 'D:\\' || trimmedFolder === 'D:' ||
         trimmedFolder === 'E:\\' || trimmedFolder === 'E:' ||
-        trimmedFolder === 'F:\\' || trimmedFolder === 'F:') {
+        trimmedFolder === 'F:\\' || trimmedFolder === 'F:' ||
+        trimmedFolder.match(/^[A-Z]:\\?$/)) {
       const confirmed = window.confirm(
         '⚠️ WARNING!\n\n' +
         'You are about to monitor an entire drive (' + newFolder + ')\n\n' +
@@ -72,16 +79,16 @@ function Settings({ state, refreshData }) {
       }
     }
 
-    const exists = await validateFolder(newFolder);
+    const exists = await validateFolder(normalizedPath);
     if (!exists) {
-      showModal('error', 'Invalid Folder', 'Folder does not exist! Please enter a valid folder path.');
+      showModal('error', 'Invalid Folder', `Folder does not exist: ${normalizedPath}\n\nPlease enter a valid folder path.`);
       return;
     }
 
     setSaving(true);
     try {
       await axios.post(await getApiUrl('api/state'), {
-        add_monitor_folder: newFolder.trim()
+        add_monitor_folder: normalizedPath
       });
       
       setNewFolder('');

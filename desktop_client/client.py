@@ -434,13 +434,29 @@ def api_server_loop():
                     self.end_headers()
                     self.wfile.write(json.dumps({"success": True, "state": client_state}).encode())
                 elif self.path == '/api/folders/validate':
-                    path = data.get("path", "")
-                    exists = os.path.exists(path) and os.path.isdir(path)
+                    path = data.get("path", "").strip()
+                    # Normalize path - remove trailing backslash except for root drives
+                    if path and path.endswith('\\') and len(path) > 3:
+                        # Not a root drive like "C:\", so remove trailing backslash
+                        path = path.rstrip('\\')
+                    elif path and path.endswith('\\') and len(path) == 3:
+                        # Root drive like "E:\" - keep it as is
+                        pass
+                    
+                    # Check if path exists and is a directory
+                    exists = False
+                    if path:
+                        try:
+                            exists = os.path.exists(path) and os.path.isdir(path)
+                        except Exception as e:
+                            print(f"Error validating path {path}: {e}")
+                            exists = False
+                    
                     self.send_response(200)
                     self.send_header('Content-Type', 'application/json')
                     self.send_header('Access-Control-Allow-Origin', '*')
                     self.end_headers()
-                    self.wfile.write(json.dumps({"success": True, "exists": exists}).encode())
+                    self.wfile.write(json.dumps({"success": True, "exists": exists, "normalized_path": path}).encode())
                 else:
                     self.send_response(404)
                     self.end_headers()

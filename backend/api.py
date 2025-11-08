@@ -255,9 +255,26 @@ def validate_folder():
     """Validate if a folder path exists."""
     try:
         data = request.json
-        path = data.get("path", "")
-        exists = os.path.exists(path) and os.path.isdir(path)
-        return jsonify({"success": True, "exists": exists})
+        path = data.get("path", "").strip()
+        
+        # Normalize path - remove trailing backslash except for root drives
+        if path and path.endswith('\\') and len(path) > 3:
+            # Not a root drive like "C:\", so remove trailing backslash
+            path = path.rstrip('\\')
+        elif path and path.endswith('\\') and len(path) == 3:
+            # Root drive like "E:\" - keep it as is
+            pass
+        
+        # Check if path exists and is a directory
+        exists = False
+        if path:
+            try:
+                exists = os.path.exists(path) and os.path.isdir(path)
+            except Exception as e:
+                add_log(f"Error validating path {path}: {e}", "error")
+                exists = False
+        
+        return jsonify({"success": True, "exists": exists, "normalized_path": path})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
