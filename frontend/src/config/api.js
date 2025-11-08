@@ -4,7 +4,6 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 const LOCAL_CLIENT_URL = 'http://localhost:5001';
 
 // Check if local client is available
-let useLocalClient = false;
 let clientCheckPromise = null;
 
 // Helper function to check if local client is available
@@ -28,12 +27,10 @@ export const checkLocalClient = async () => {
       clearTimeout(timeoutId);
       
       if (response.ok) {
-        useLocalClient = true;
         return true;
       }
     } catch (e) {
       // Local client not available
-      useLocalClient = false;
     } finally {
       clientCheckPromise = null;
     }
