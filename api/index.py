@@ -22,23 +22,45 @@ def cors_headers():
 
 def parse_body(request):
     """Parse request body."""
-    body = request.body
+    # Vercel passes request as dict
+    if isinstance(request, dict):
+        body = request.get('body', '')
+    else:
+        body = getattr(request, 'body', '')
+    
     if isinstance(body, bytes):
         body = body.decode('utf-8')
-    return json.loads(body) if body else {}
+    if not body:
+        return {}
+    try:
+        return json.loads(body)
+    except:
+        return {}
 
 def parse_query(request):
     """Parse query parameters from request URL."""
-    if hasattr(request, 'url'):
-        parsed = urlparse(request.url)
+    # Vercel passes request as dict
+    if isinstance(request, dict):
+        url = request.get('url', '')
+        query = request.get('query', {})
+    else:
+        url = getattr(request, 'url', '')
+        query = getattr(request, 'query', {})
+    
+    if url:
+        parsed = urlparse(url)
         return parse_qs(parsed.query)
-    elif hasattr(request, 'query'):
-        return request.query
+    elif query:
+        return query
     return {}
 
 def handle_state(request, path_parts):
     """Handle /api/state requests."""
-    method = getattr(request, 'method', 'GET')
+    # Vercel passes request as dict
+    if isinstance(request, dict):
+        method = request.get('method', 'GET')
+    else:
+        method = getattr(request, 'method', 'GET')
     
     if method == 'GET':
         state = get_state()
@@ -101,7 +123,10 @@ def handle_state(request, path_parts):
 
 def handle_status(request, path_parts):
     """Handle /api/status requests."""
-    method = getattr(request, 'method', 'GET')
+    if isinstance(request, dict):
+        method = request.get('method', 'GET')
+    else:
+        method = getattr(request, 'method', 'GET')
     if method == 'GET':
         state = get_state()
         monitor_folders = state.get("monitor_folders", [])
@@ -129,7 +154,10 @@ def handle_status(request, path_parts):
 
 def handle_logs(request, path_parts):
     """Handle /api/logs requests."""
-    method = getattr(request, 'method', 'GET')
+    if isinstance(request, dict):
+        method = request.get('method', 'GET')
+    else:
+        method = getattr(request, 'method', 'GET')
     if method == 'GET':
         query = parse_query(request)
         limit = int(query.get('limit', [50])[0]) if query.get('limit') else 50
@@ -148,7 +176,7 @@ def handle_backups_cloud(request, path_parts):
         action = path_parts[2]
         
         if action == 'download':
-            method = getattr(request, 'method', 'GET')
+            method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
             if method == 'POST':
                 data = parse_body(request)
                 filename = data.get("filename")
@@ -158,7 +186,7 @@ def handle_backups_cloud(request, path_parts):
                 return {'statusCode': 200, 'headers': cors_headers(), 'body': json.dumps({"success": True, "message": "Download feature requires file system access"})}
         
         elif action == 'delete':
-            method = getattr(request, 'method', 'GET')
+            method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
             if method == 'POST':
                 try:
                     data = parse_body(request)
@@ -184,7 +212,7 @@ def handle_backups_cloud(request, path_parts):
                     return {'statusCode': 500, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": str(e)})}
         
         elif action == 'delete-all':
-            method = getattr(request, 'method', 'GET')
+            method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
             if method == 'POST':
                 try:
                     if not MONGO_URI:
@@ -203,7 +231,7 @@ def handle_backups_cloud(request, path_parts):
                     add_log(f"Delete all failed: {e}", "error")
                     return {'statusCode': 500, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": str(e)})}
     
-    method = getattr(request, 'method', 'GET')
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
     if method == 'GET':
         try:
             files = get_mongo_backup_files()
@@ -215,7 +243,7 @@ def handle_backups_cloud(request, path_parts):
 
 def handle_backups_local(request, path_parts):
     """Handle /api/backups/local requests."""
-    method = getattr(request, 'method', 'GET')
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
     if len(path_parts) > 2:
         action = path_parts[2]
         if action in ['delete', 'delete-all']:
@@ -230,7 +258,7 @@ def handle_backups_local(request, path_parts):
 
 def handle_monitoring(request, path_parts):
     """Handle /api/monitoring requests."""
-    method = getattr(request, 'method', 'GET')
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
     if len(path_parts) > 1:
         action = path_parts[1]
         if method == 'POST':
@@ -253,7 +281,7 @@ def handle_monitoring(request, path_parts):
 
 def handle_upload(request, path_parts):
     """Handle /api/upload requests."""
-    method = getattr(request, 'method', 'GET')
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
     if method == 'POST':
         add_log("Manual upload requested - not available in serverless environment", "warning")
         return {'statusCode': 200, 'headers': cors_headers(), 'body': json.dumps({"success": True, "message": "Upload feature requires file system access"})}
@@ -262,7 +290,7 @@ def handle_upload(request, path_parts):
 
 def handle_folders_validate(request, path_parts):
     """Handle /api/folders/validate requests."""
-    method = getattr(request, 'method', 'GET')
+    method = request.get('method', 'GET') if isinstance(request, dict) else getattr(request, 'method', 'GET')
     if method == 'POST':
         try:
             data = parse_body(request)
@@ -275,61 +303,85 @@ def handle_folders_validate(request, path_parts):
 
 def handler(request):
     """Main handler that routes all API requests."""
-    # Handle CORS preflight
-    method = getattr(request, 'method', 'GET')
-    if method == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type'
+    try:
+        # Vercel passes request as dict
+        if isinstance(request, dict):
+            method = request.get('method', 'GET')
+            path = request.get('path', '')
+            if not path:
+                url = request.get('url', '')
+                if url:
+                    parsed = urlparse(url)
+                    path = parsed.path
+            headers = request.get('headers', {})
+        else:
+            method = getattr(request, 'method', 'GET')
+            path = getattr(request, 'path', '')
+            if not path and hasattr(request, 'url'):
+                parsed = urlparse(request.url)
+                path = parsed.path
+            headers = getattr(request, 'headers', {})
+        
+        # Handle CORS preflight
+        if method == 'OPTIONS':
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type'
+                }
             }
-        }
-    
-    # Parse the path from request
-    path = ''
-    if hasattr(request, 'path'):
-        path = request.path
-    elif hasattr(request, 'url'):
-        parsed = urlparse(request.url)
-        path = parsed.path
-    elif hasattr(request, 'headers') and 'x-vercel-path' in request.headers:
-        path = request.headers['x-vercel-path']
-    
-    # Remove leading /api if present
-    if path.startswith('/api'):
-        path = path[4:]
-    if path.startswith('/'):
-        path = path[1:]
-    
-    path_parts = [p for p in path.split('/') if p]
-    
-    # Route to appropriate handler
-    if not path_parts:
+        
+        # Remove leading /api if present
+        if path.startswith('/api'):
+            path = path[4:]
+        if path.startswith('/'):
+            path = path[1:]
+        
+        path_parts = [p for p in path.split('/') if p]
+        
+        # Route to appropriate handler
+        if not path_parts:
+            return {'statusCode': 404, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Endpoint not found"})}
+        
+        route = path_parts[0]
+        
+        if route == 'state':
+            return handle_state(request, path_parts)
+        elif route == 'status':
+            return handle_status(request, path_parts)
+        elif route == 'logs':
+            return handle_logs(request, path_parts)
+        elif route == 'backups':
+            if len(path_parts) > 1:
+                if path_parts[1] == 'cloud':
+                    return handle_backups_cloud(request, path_parts)
+                elif path_parts[1] == 'local':
+                    return handle_backups_local(request, path_parts)
+        elif route == 'monitoring':
+            return handle_monitoring(request, path_parts)
+        elif route == 'upload':
+            return handle_upload(request, path_parts)
+        elif route == 'folders':
+            if len(path_parts) > 1 and path_parts[1] == 'validate':
+                return handle_folders_validate(request, path_parts)
+        
         return {'statusCode': 404, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Endpoint not found"})}
     
-    route = path_parts[0]
-    
-    if route == 'state':
-        return handle_state(request, path_parts)
-    elif route == 'status':
-        return handle_status(request, path_parts)
-    elif route == 'logs':
-        return handle_logs(request, path_parts)
-    elif route == 'backups':
-        if len(path_parts) > 1:
-            if path_parts[1] == 'cloud':
-                return handle_backups_cloud(request, path_parts)
-            elif path_parts[1] == 'local':
-                return handle_backups_local(request, path_parts)
-    elif route == 'monitoring':
-        return handle_monitoring(request, path_parts)
-    elif route == 'upload':
-        return handle_upload(request, path_parts)
-    elif route == 'folders':
-        if len(path_parts) > 1 and path_parts[1] == 'validate':
-            return handle_folders_validate(request, path_parts)
-    
-    return {'statusCode': 404, 'headers': cors_headers(), 'body': json.dumps({"success": False, "error": "Endpoint not found"})}
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        traceback_str = traceback.format_exc()
+        print(f"Error in handler: {error_msg}")
+        print(traceback_str)
+        return {
+            'statusCode': 500,
+            'headers': cors_headers(),
+            'body': json.dumps({
+                "success": False,
+                "error": error_msg,
+                "details": traceback_str
+            })
+        }
 
