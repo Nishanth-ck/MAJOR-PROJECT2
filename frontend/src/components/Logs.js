@@ -45,10 +45,6 @@ function Logs() {
     }
   };
 
-  const getLogClass = (type) => {
-    return `log-item log-${type}`;
-  };
-
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString();
